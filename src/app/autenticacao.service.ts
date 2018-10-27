@@ -1,11 +1,20 @@
+import { Injectable } from '@angular/core';
+import { Router } from '@angular/router';
 import { Usuario } from './acesso/usuario.model';
 import * as firebase from 'firebase';
 
+@Injectable()
 export class Autenticacao {
-    public cadastrarUsuario (usuario: Usuario) {
-      console.log('Service', usuario);
 
-      firebase.auth().createUserWithEmailAndPassword(usuario.email, usuario.senha)
+  public token_id: string;
+
+  constructor(
+    private router: Router
+  ) {}
+
+    public cadastrarUsuario (usuario: Usuario): Promise<any> {
+      // console.log('Service', usuario);
+      return firebase.auth().createUserWithEmailAndPassword(usuario.email, usuario.senha)
         .then((resposta: any) => {
           // remover a senha do atributo usuario
           delete usuario.senha;
@@ -15,6 +24,42 @@ export class Autenticacao {
         })
         .catch((error: Error) => {
           console.log(error);
+        });
+    }
+
+    public autenticar(email: string, senha: string) {
+      console.log(email, senha);
+      firebase.auth().signInWithEmailAndPassword(email, senha)
+        .then((resposta: any) => {
+          firebase.auth().currentUser.getIdToken()
+            .then((idToken: string) => {
+              this.token_id = idToken,
+              localStorage.setItem('idToken', idToken),
+              this.router.navigate(['/home']);
+            });
+        })
+        .catch((error: Error) => console.log(error));
+    }
+
+    public autenticado() {
+
+      if (this.token_id === undefined && localStorage.getItem('idToken') !== null ) {
+        this.token_id = localStorage.getItem('idToken');
+      }
+
+      if (this.token_id === undefined) {
+        this.router.navigate(['/']);
+      }
+
+      return this.token_id !== undefined;
+    }
+
+    public sair() {
+      firebase.auth().signOut()
+        .then(() => {
+          localStorage.removeItem('idToken'),
+          this.token_id = undefined,
+          this.router.navigate(['/']);
         });
     }
 }
